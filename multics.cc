@@ -186,6 +186,8 @@
 #include <cmath> // sqrt, sin, cos, log
 #include <random>
 #include <ctime>
+#include <cstdlib>
+#include <string>
 
 #include <TFile.h>
 #include <TH1.h>
@@ -230,63 +232,120 @@ void DIRECT( double CDT, double DF, double & u, double & v, double & w )
 
 } // direct
 
+
 //------------------------------------------------------------------------------
-int main()
+int main(int argc, char** argv)
 {
-  // tracks:
+  if(argc < 4) {
+    cout << "Not enough arguments given. Needed are: ELEMENT THICKNESS[um] ENERGY[GeV] SCREENING." << endl;
+    return 1;
+  }
 
-  int ntotal = 10*1000;
+  //--- input data
+  string element = argv[1];
+  string thickness = argv[2];
+  string energy = argv[3];
+  string screening = argv[4];
+  string nameSuffix = element+"_"+thickness+"um_"+energy+"GeV_"+screening;
+ 
+  double thck = atoi(argv[2])*1./10000; // sample thickness [cm]
+  double e0mev = atoi(argv[3])*1000;    // incident energy [MeV]
+  double eabs = 10;                     // absorption energy [keV]
+  int ntotal = 100*1000;                // tracks statistic
+  
+  //--- element data
+  double Z, A, rho, AA, AL1, AL2;
+  // Aluminum
+  if(element == "Al") {
+    Z = 13;
+    A = 26.984;
+    rho = 2.6989;
+    
+    if(screening == "free") {
+      AA = 0.60013; AL1 = 5.14064; AL2 = 1.01539; }
+    else {
+      AA = 0.31543; AL1 = 7.28752; AL2 = 1.77451; }
+  }
+  // Silicon
+  else if(element == "Si") {
+    Z = 14;
+    A = 28.0855;
+    rho = 2.336;
+    
+    if(screening == "free") {
+      AA = 0.51591; AL1 = 5.84957; AL2 = 1.17330; }
+    else {
+      AA = 0.31186; AL1 = 7.76730; AL2 = 1.71824; }
+  }
+  // Titanium
+  else if(element == "Ti") {
+    Z = 22;
+    A = 47.88;
+    rho = 4.50;
+    
+    if(screening == "free") {
+      AA = 0.53593; AL1 = 6.89381; AL2 = 1.18766; }
+    else {
+      cout << "Not available" << endl;
+      return 0; }
+  }
+  // Nickel
+  else if(element == "Ni") {
+    Z = 28;
+    A = 58.69;
+    rho = 8.908;
+    
+    if(screening == "free") {
+      AA = 0.48921; AL1 = 7.92752; AL2=1.63224; }
+    else {
+      AA = 0.21892; AL1 = 13.2947; AL2 = 2.30276; }
+  }
+  // Copper
+  else if(element == "Cu") {
+    Z = 29;
+    A = 63.546;
+    rho = 8.960;
+    
+    if(screening == "free") {
+      AA = 0.46600; AL1 = 8.20246; AL2 = 1.82639; }
+    else {
+      AA = 0.21374; AL1 = 13.4817; AL2 = 2.42997; }
+  }
+  // Tungsten
+  else if(element == "W") {
+    Z = 74;
+    A = 183.85;
+    rho = 19.25;
+    
+    if(screening == "free") {
+      AA = 0.54238; AL1 = 12.1611; AL2 = 1.79841; }
+    else {
+      AA = 0.40817; AL1 = 14.8914; AL2 = 2.26673; }
+  }
+
+  else {
+    cout << "element " << element << " not available. STOP." << endl;
+    return 0;
+  }
+  
+
+  // output simulation input      
   cout << "  NUMBER OF TRAJECTORIES DESIRED .. " << ntotal << endl;
-
-  // THICKNESS:
-
-  double thck = 0.0150; // [cm]
   cout << "  THICKNESS ....................... " << thck*10 << " mm" << endl;
-
-  // incident energy:
-
-  double e0mev = 5000;
   cout << "  INITIAL ELECTRON ENERGY ( E0 ) .. " << e0mev << " MeV" << endl;
-
-  // ABSORPTION ENERGY:
-
-  double eabs = 10;               // keV
   cout << "  LOWER ELECTRON ENERGY ( EABS ) .. " << eabs << " keV" << endl;
 
-  // ELEMENT DATA:
-  /*
-  double Z = 13;       // Al
-  double A = 26.984;   // g/mol
-  double rho = 2.702;  // g/cm3
-  */
-  double Z = 14;       // Si
-  double A = 28.0855;  // g/mol
-  double rho = 2.329;  // g/cm3
-
   cout << "  ATOMIC NUMBER " << Z << endl
-       << "  ATOMIC WEIGHT " << A << endl
+       << "  ATOMIC WEIGHT " << A << " g/mol" << endl
        << "  DENSITY       " << rho << " g/cm3" << endl;
-
-  // SCREENING PARAMETERS:
-  /*
-  double AA = 0.31543; // Al Wigner-Seitz
-  double AL1 = 7.28752;
-  double AL2 = 1.77451;
-  */
-  /*
-  double AA = 0.51591; // Si free
-  double AL1 = 5.84957;
-  double AL2 = 1.17330;
-  */
-  double AA = 0.31186; // Si Wigner-Seitz
-  double AL1 = 7.76730;
-  double AL2 = 1.71824 ;
 
   cout << "  SCREENING CONSTANTS:" << endl
        << "  A      = " << A << endl
        << "  alpha1 = " << AL1 << endl
        << "  alpha2 = " << AL2 << endl;
 
+
+  
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   // atomic units: hbar = m = e = 1
 
@@ -297,7 +356,7 @@ int main()
 
   double AVOG = 6.022094e23; // [atoms/Mol]
   double a0b = 5.291771e-9; // Bohr radius [cm]
-  double HRKEV  = 2.721160e-2; // Hartree aomic units
+  double HRKEV  = 2.721160e-2; // Hartree atomic units
 
   // POWERS OF THE SPEED OF LIGHT in atomic units:
 
@@ -382,11 +441,10 @@ int main()
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   // (re-)create root file:
+  TFile * histoFile = new TFile( Form("output/multics_%s.root",nameSuffix.c_str()), "RECREATE" );
 
-  TFile * histoFile = new TFile( "multics.root", "RECREATE" );
-
+  
   // book histos:
-
   TH1I hwm( "wmin", "min single energy loss;min energy loss [eV];e", 200, 0, 20 );
   TH1I hde00( "de00", "single energy loss;energy loss [eV];inelastics", 200, 0, 20 );
   TH1I hde0( "de0", "single energy loss;energy loss [eV];inelastics", 200, 0, 200 );
